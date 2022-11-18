@@ -1,6 +1,5 @@
 import styled from "styled-components/native";
 import {UsersThree} from 'phosphor-react-native'
-import {colors} from "react-native-svg/lib/typescript/lib/extract/extractColor";
 
 export const Container = styled.View`
   background-color: ${({theme}) => theme.COLORS.GRAY_600};
