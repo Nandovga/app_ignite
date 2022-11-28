@@ -1,6 +1,13 @@
-import {useState} from "react";
-import {FlatList} from "react-native";
+import {useState, useEffect, useRef} from "react";
+import {Alert, FlatList, TextInput} from "react-native";
 import {useRoute} from "@react-navigation/native";
+
+import {AppError} from "@utils/AppError";
+
+import {playerAddByGroup} from "@storage/player/playerAddByGroup";
+import {playersGetByGroupTeam} from "@storage/player/playersGetByGroupTeam";
+import {playerRemoveByGroup} from "@storage/player/playerRemoveByGroup";
+import {PlayerStorageDTO} from "@storage/player/PlayerStorageDTO";
 
 import {Header} from "@components/Header";
 import {Highlight} from "@components/Highlight";
@@ -20,9 +27,56 @@ type RouteParams = {
 export function Players() {
     const route = useRoute();
     const {group} = route.params as RouteParams
+    const newPlayerNameInputRef = useRef<TextInput>(null);
 
     const [team, setTeam] = useState('Time A')
-    const [players, setPlayers] = useState([])
+    const [players, setPlayers] = useState<PlayerStorageDTO[]>([])
+    const [newPlayerName, setNewPlayerName] = useState('')
+
+    async function handleAppPlayer() {
+        if (newPlayerName.trim().length === 0)
+            return Alert.alert('Novo pessoa', 'Informe o nome da pessoa pra adicionar');
+
+        const newPlayer = {name: newPlayerName, team}
+        try {
+            await playerAddByGroup(newPlayer, group)
+            newPlayerNameInputRef.current?.blur()
+
+            setNewPlayerName('')
+            fetchPlayersByTeam();
+        } catch (error) {
+            if (error instanceof AppError)
+                Alert.alert("Nova pessoa", error.message)
+            else {
+                Alert.alert("Nova pessoa", "Não foi possível adicionar.");
+                console.log(error)
+            }
+        }
+    }
+
+    async function handleRemovePlayer(playerName: string) {
+        try{
+            await playerRemoveByGroup(playerName, group);
+            fetchPlayersByTeam();
+        }catch (error){
+            console.log(error)
+            Alert.alert('Remover pessoa', 'Não foi possível remover essa pessoa.');
+        }
+    }
+
+    async function fetchPlayersByTeam() {
+        try {
+            const playersByTeam = await playersGetByGroupTeam(group, team)
+            setPlayers(playersByTeam)
+        } catch (error) {
+            console.log(error)
+            Alert.alert('Pessoas', 'Não foi possível carregar pessoas do time selecionado!');
+        }
+    }
+
+    useEffect(() => {
+        fetchPlayersByTeam();
+    }, [team])
 
     return (
         <Container>
@@ -31,8 +85,14 @@ export function Players() {
                        subtitle="Adicione a galera e separe o time"/>
             <Form>
                 <Input placeholder="Nome da pessoa"
-                       autoCorrect={false}/>
-                <ButtonIcon icon="add"/>
+                       autoCorrect={false}
+                       value={newPlayerName}
+                       onChangeText={setNewPlayerName}
+                       inputRef={newPlayerNameInputRef}
+                       onSubmitEditing={handleAppPlayer}
+                       returnKeyType="done"/>
+                <ButtonIcon icon="add"
+                            onPress={handleAppPlayer}/>
             </Form>
             <HeaderList>
                 <FlatList data={['Time A', 'Time B']}
@@ -44,10 +104,9 @@ export function Players() {
                 <NumberOfPlayers>{players.length}</NumberOfPlayers>
             </HeaderList>
             <FlatList data={players}
-                      keyExtractor={item => item}
-                      renderItem={({item}) => <PlayerCard name={item}
-                                                          onRemove={() => {
-                                                          }}/>}
+                      keyExtractor={item => item.name}
+                      renderItem={({item}) => <PlayerCard name={item.name}
+                                                          onRemove={() => handleRemovePlayer(item.name)}/>}
                       ListEmptyComponent={() => <ListEmpty message='Não há pessoas nesse time'/>}
                       showsVerticalScrollIndicator={false}
                       contentContainerStyle={[{paddingBottom: 100}, players.length === 0 && {flex: 1}]}
