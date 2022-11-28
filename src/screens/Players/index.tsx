@@ -29,8 +29,8 @@ type RouteParams = {
 export function Players() {
     const route = useRoute();
     const navigation = useNavigation();
-    const {group} = route.params as RouteParams
     const newPlayerNameInputRef = useRef<TextInput>(null);
+    const {group} = route.params as RouteParams
 
     const [team, setTeam] = useState('Time A')
     const [players, setPlayers] = useState<PlayerStorageDTO[]>([])
